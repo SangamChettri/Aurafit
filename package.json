@@ -1,0 +1,27 @@
+{
+  "name": "fitness-platform",
+  "version": "1.0.0",
+  "description": "All-in-one fitness platform with React Native frontend and Express backend",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev:admin": "cd admin && npm run dev",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ../admin && npm install",
+    "prisma:generate": "cd backend && npx prisma generate",
+    "prisma:migrate": "cd backend && npx prisma migrate dev",
+    "prisma:studio": "cd backend && npx prisma studio"
+  },
+  "keywords": [
+    "fitness",
+    "react-native",
+    "express",
+    "prisma"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

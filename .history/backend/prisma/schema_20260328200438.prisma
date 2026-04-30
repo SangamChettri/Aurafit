@@ -1,0 +1,275 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enums matching Sequelize models
+enum FitnessGoal {
+  weight_loss
+  muscle_gain
+  endurance
+  general_fitness
+  strength
+}
+
+enum WorkoutType {
+  strength
+  cardio
+  hiit
+  yoga
+  pilates
+  crossfit
+  sports
+  other
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum ActivityLevel {
+  sedentary
+  light
+  moderate
+  active
+  very_active
+}
+
+enum Difficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum Role {
+  user
+  admin
+  super_admin
+}
+
+model User {
+  id                        Int               @id @default(autoincrement())
+  name                      String            @db.VarChar(255)
+  email                     String            @unique @db.VarChar(255)
+  password                  String            @db.VarChar(255)
+  avatar                    String?           @db.VarChar(500)
+  fitness_goal              FitnessGoal       @default(general_fitness) @map("fitness_goal")
+  height                    Decimal?          @db.Decimal(5, 2)
+  weight                    Decimal?          @db.Decimal(5, 2)
+  age                       Int?
+  gender                    Gender?
+  activity_level            ActivityLevel     @default(moderate)
+  email_verified            Boolean           @default(false) @map("email_verified")
+  email_verification_token  String?           @map("email_verification_token") @db.VarChar(500)
+  password_reset_token      String?           @map("password_reset_token") @db.VarChar(500)
+  password_reset_expires    DateTime?         @map("password_reset_expires")
+  last_login                DateTime?         @map("last_login")
+  is_active                 Boolean           @default(true) @map("is_active")
+  is_premium                Boolean           @default(false) @map("is_premium")
+  role                      Role              @default(user) @map("role")
+  premium_expires           DateTime?         @map("premium_expires")
+  createdAt                 DateTime          @default(now()) @map("created_at")
+  updatedAt                 DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  workouts                  Workout[]
+  progress                  Progress[]
+  streaks                   Streak[]
+  notifications             Notification[]
+  personalRecords           PersonalRecord[]
+  userSettings              UserSettings[]
+
+  @@index([email])
+  @@index([fitness_goal])
+  @@index([createdAt])
+  @@index([email_verified])
+  @@index([is_active])
+  @@map("users")
+}
+
+model Workout {
+  id              Int          @id @default(autoincrement())
+  userId          Int          @map("user_id")
+  name            String       @db.VarChar(255)
+  type            WorkoutType
+  date            DateTime     @db.Date
+  duration        Int?
+  notes           String?      @db.Text
+  caloriesBurned  Int?         @map("calories_burned")
+  difficulty      Difficulty?
+  completed       Boolean      @default(true)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises       Exercise[]
+
+  @@index([userId])
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([date])
+  @@index([type])
+  @@index([completed])
+  @@map("workouts")
+}
+
+model Exercise {
+  id            Int       @id @default(autoincrement())
+  workoutId     Int       @map("workout_id")
+  name          String    @db.VarChar(255)
+  sets          Int?
+  reps          Int?
+  weight        Decimal?  @db.Decimal(6, 2)
+  duration      Int?
+  distance      Decimal?  @db.Decimal(8, 2)
+  calories      Int?
+  notes         String?   @db.Text
+  restTime      Int?      @map("rest_time")
+  difficulty    Difficulty?
+  completed     Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  workout       Workout   @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@index([workoutId])
+  @@index([name])
+  @@index([workoutId, name])
+  @@index([completed])
+  @@map("exercises")
+}
+
+model Progress {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  date          DateTime  @db.Date
+  weight        Decimal?  @db.Decimal(5, 2)
+  bodyFat       Decimal?  @db.Decimal(5, 2) @map("body_fat")
+  measurements  Json?
+  photos        Json?
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@map("progress")
+}
+
+model Streak {
+  id                   Int       @id @default(autoincrement())
+  userId               Int       @map("user_id")
+  currentStreak        Int       @default(0) @map("current_streak")
+  longestStreak        Int       @default(0) @map("longest_streak")
+  lastWorkoutDate      DateTime? @db.Date @map("last_workout_date")
+  freezeDaysUsed       Int       @default(0) @map("freeze_days_used")
+  freezeDaysAvailable  Int       @default(0) @map("freeze_days_available")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@index([userId])
+  @@index([currentStreak])
+  @@map("streaks")
+}
+
+model PersonalRecord {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  exerciseName String   @map("exercise_name") @db.VarChar(255)
+  weight      Decimal?  @db.Decimal(6, 2)
+  reps        Int?
+  duration    Int?
+  distance    Decimal?  @db.Decimal(8, 2)
+  date        DateTime  @db.Date
+  workoutId   Int?      @map("workout_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, exerciseName])
+  @@index([userId, date])
+  @@index([exerciseName])
+  @@map("personal_records")
+}
+
+model UserSettings {
+  id                        Int       @id @default(autoincrement())
+  userId                    Int       @unique @map("user_id")
+  notificationsEnabled      Boolean   @default(true) @map("notifications_enabled")
+  dailyReminderTime         String    @default("09:00:00") @map("daily_reminder_time")
+  weeklyReportDay           String    @default("monday") @map("weekly_report_day") @db.VarChar(10)
+  units                     String    @default("metric") @map("units") @db.VarChar(10)
+  privacyLevel              String    @default("private") @map("privacy_level") @db.VarChar(20)
+  achievementNotifications  Boolean   @default(true) @map("achievement_notifications")
+  streakNotifications       Boolean   @default(true) @map("streak_notifications")
+  progressNotifications     Boolean   @default(true) @map("progress_notifications")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_settings")
+}
+
+model Notification {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  type          String    @db.VarChar(50)
+  title         String    @db.VarChar(255)
+  message       String    @db.Text
+  data          Json?
+  isRead        Boolean   @default(false) @map("is_read")
+  scheduledFor  DateTime? @map("scheduled_for")
+  sentAt        DateTime? @map("sent_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, type])
+  @@index([scheduledFor, sentAt])
+  @@map("notifications")
+}
+
+model AdminLog {
+  id          Int       @id @default(autoincrement())
+  adminId     Int       @map("admin_id")
+  action      String    @db.VarChar(50)
+  resource    String    @db.VarChar(50)
+  resourceId  String?   @map("resource_id") @db.VarChar(255)
+  details     Json?
+  ipAddress   String?   @map("ip_address") @db.VarChar(45)
+  userAgent   String?   @map("user_agent") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([adminId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
