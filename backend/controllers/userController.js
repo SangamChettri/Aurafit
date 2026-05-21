@@ -19,13 +19,21 @@ const calculateWorkoutVolume = (workout) => {
   if (Array.isArray(workout.exercises) && workout.exercises.length > 0) {
     return workout.exercises.reduce((total, exercise) => (
       total + (exercise.sets || []).reduce((setTotal, set) => {
-        const isCompleted = set.isCompleted !== undefined ? set.isCompleted !== false : true;
+        const weight = Number(set.weight);
+        const reps = Number(set.reps);
 
-        if (!isCompleted || !set.weight || !set.reps) {
+        if (
+          set.weight === null ||
+          set.weight === undefined ||
+          !Number.isFinite(weight) ||
+          weight <= 0 ||
+          !Number.isFinite(reps) ||
+          reps <= 0
+        ) {
           return setTotal;
         }
 
-        return setTotal + Number(set.weight) * Number(set.reps);
+        return setTotal + weight * reps;
       }, 0)
     ), 0);
   }
@@ -39,6 +47,27 @@ const calculateWorkoutVolume = (workout) => {
   }
 
   return 0;
+};
+
+const getMonthDateRange = (monthParam, yearParam) => {
+  const now = new Date();
+  const parsedMonth = Number.parseInt(monthParam, 10);
+  const parsedYear = Number.parseInt(yearParam, 10);
+
+  const month = Number.isInteger(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12
+    ? parsedMonth
+    : now.getMonth() + 1;
+  const year = Number.isInteger(parsedYear) && parsedYear >= 1970
+    ? parsedYear
+    : now.getFullYear();
+
+  const startOfMonth = new Date(year, month - 1, 1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const endOfMonth = new Date(year, month, 0);
+  endOfMonth.setHours(23, 59, 59, 999);
+
+  return { startOfMonth, endOfMonth };
 };
 
 const calculateStreaks = (workoutDays) => {
@@ -135,15 +164,16 @@ const getUserProfile = asyncHandler(async (req, res) => {
   endOfWeek.setDate(startOfWeek.getDate() + 6);
   endOfWeek.setHours(23, 59, 59, 999);
 
-  const [lastMeasurement, workoutStats, achievements, allWorkouts, workoutsWithSets, weeklyWorkouts] = await Promise.all([
+  const { startOfMonth, endOfMonth } = getMonthDateRange(req.query.month, req.query.year);
+
+  const [lastMeasurement, workoutStats, achievements, allWorkouts, workoutsWithSets, weeklyWorkouts, monthlyWorkouts] = await Promise.all([
     prisma.bodyMeasurement.findFirst({
       where: { userId: req.user.id },
       orderBy: { date: 'desc' }
     }),
     prisma.workout.aggregate({
       where: { userId: req.user.id },
-      _count: { id: true },
-      _sum: { duration: true, totalVolume: true }
+      _count: { id: true }
     }),
     prisma.userAchievement.count({
       where: { userId: req.user.id }
@@ -197,6 +227,29 @@ const getUserProfile = asyncHandler(async (req, res) => {
           }
         }
       }
+    }),
+    prisma.workout.findMany({
+      where: {
+        userId: req.user.id,
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      },
+      select: {
+        totalVolume: true,
+        exercises: {
+          select: {
+            sets: {
+              select: {
+                weight: true,
+                reps: true,
+                isCompleted: true,
+              }
+            }
+          }
+        }
+      }
     })
   ]);
 
@@ -220,6 +273,8 @@ const getUserProfile = asyncHandler(async (req, res) => {
 
   const workoutDays = Array.from(workoutDayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
   const computedTotalVolume = workoutsWithSets.reduce((sum, workout) => sum + calculateWorkoutVolume(workout), 0);
+  const monthlyTotalVolume = monthlyWorkouts.reduce((sum, workout) => sum + calculateWorkoutVolume(workout), 0);
+  const roundedMonthlyVolumeKg = Math.round(monthlyTotalVolume * 10) / 10;
   const weeklyWeightData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayLabel, index) => {
     const currentDate = new Date(startOfWeek);
     currentDate.setDate(startOfWeek.getDate() + index);
@@ -254,8 +309,10 @@ const getUserProfile = asyncHandler(async (req, res) => {
       lastMeasurement,
       stats: {
         totalWorkouts: workoutStats._count.id || 0,
-        totalHours: Math.round((workoutStats._sum.duration || 0) / 60),
         totalVolume: Math.round(computedTotalVolume * 100) / 100,
+        workoutsCount: monthlyWorkouts.length,
+        totalVolumeKg: roundedMonthlyVolumeKg,
+        monthlyVolumeKg: roundedMonthlyVolumeKg,
         achievementCount: achievements,
         currentStreak: streak.current,
         personalBestStreak: streak.best,

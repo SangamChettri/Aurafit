@@ -24,6 +24,7 @@ yarn-error.log*
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # IDE
 .vscode/
@@ -48,3 +49,9 @@ frontend/ios/build/
 
 # Metro
 frontend/.metro-health-check*
+frontend/.expo/
+frontend/desktop.ini
+
+# Local history / backups
+.history/
+.repo_backups/
