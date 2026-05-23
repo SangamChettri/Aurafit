@@ -127,7 +127,7 @@ router.get('/users', async (req, res) => {
 router.get('/users/:id', async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.params.id },
+      where: { id: parseInt(req.params.id) },
       include: {
         _count: {
           select: {
@@ -135,6 +135,17 @@ router.get('/users/:id', async (req, res) => {
             goals: true,
             progressEntries: true
           }
+        },
+        streak: true,
+        workouts: {
+          include: {
+            exercises: {
+              include: {
+                sets: true
+              }
+            }
+          },
+          orderBy: { date: 'desc' }
         }
       }
     });
@@ -146,9 +157,39 @@ router.get('/users/:id', async (req, res) => {
       });
     }
 
+    // Calculate total volume: sum of weight × reps × sets for all exercises
+    let totalVolumeKg = 0;
+    user.workouts.forEach(workout => {
+      workout.exercises.forEach(exercise => {
+        exercise.sets.forEach(set => {
+          if (set.weight !== null && set.reps !== null) {
+            totalVolumeKg += parseFloat(set.weight) * set.reps;
+          }
+        });
+      });
+    });
+
+    // Get last workout date
+    const lastWorkoutDate = user.workouts.length > 0 ? user.workouts[0].date : null;
+
+    // Get streak data
+    const currentStreak = user.streak ? user.streak.currentStreak : 0;
+    const bestStreak = user.streak ? user.streak.longestStreak : 0;
+
     res.json({
       success: true,
-      data: user
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isActive: user.is_active,
+        createdAt: user.createdAt,
+        totalWorkouts: user._count.workouts,
+        totalVolumeKg: parseFloat(totalVolumeKg.toFixed(1)),
+        lastWorkoutDate: lastWorkoutDate,
+        currentStreak: currentStreak,
+        bestStreak: bestStreak
+      }
     });
   } catch (error) {
     console.error('Get user error:', error);

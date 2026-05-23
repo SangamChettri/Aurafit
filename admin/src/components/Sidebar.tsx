@@ -5,7 +5,6 @@ import {
   Dumbbell,
   LogOut,
   Activity,
-  Trophy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,7 +12,6 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/users', label: 'Users', icon: Users },
   { path: '/exercises', label: 'Exercises', icon: Dumbbell },
-  { path: '/achievements', label: 'Achievements', icon: Trophy },
 ];
 
 interface SidebarProps {

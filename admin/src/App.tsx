@@ -5,7 +5,6 @@ import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import UserDetail from './pages/UserDetail';
 import Exercises from './pages/Exercises';
-import Achievements from './pages/Achievements';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 
@@ -42,7 +41,6 @@ function AppRoutes() {
         <Route path="users" element={<Users />} />
         <Route path="users/:id" element={<UserDetail />} />
         <Route path="exercises" element={<Exercises />} />
-        <Route path="achievements" element={<Achievements />} />
       </Route>
     </Routes>
   );

@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import api from '../config/api';
 import { 
   Search, 
-  Eye, 
   Trash2, 
   Users as UsersIcon,
-  Crown,
   UserCheck,
-  UserX
+  UserX,
+  X,
+  Dumbbell,
+  Flame,
+  Calendar
 } from 'lucide-react';
 import Avatar from '../components/Avatar';
 import { TableSkeleton } from '../components/LoadingSkeleton';
@@ -20,6 +21,11 @@ export default function Users() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserDetails, setSelectedUserDetails] = useState<any>(null);
+  const [loadingUserDetails, setLoadingUserDetails] = useState(false);
+  const [userDetailsError, setUserDetailsError] = useState<string | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -56,6 +62,36 @@ export default function Users() {
       } catch (error) {
         showToast('Failed to delete user', 'error');
       }
+    }
+  };
+
+  const handleViewUser = async (userId: string) => {
+    setSelectedUserId(userId);
+    setIsModalOpen(true);
+    setLoadingUserDetails(true);
+    setUserDetailsError(null);
+    setSelectedUserDetails(null);
+
+    try {
+      const response = await api.get(`/admin/users/${userId}`);
+      setSelectedUserDetails(response.data.data);
+    } catch (error) {
+      setUserDetailsError('Could not load user details');
+    } finally {
+      setLoadingUserDetails(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedUserId(null);
+    setSelectedUserDetails(null);
+    setUserDetailsError(null);
+  };
+
+  const handleRetryFetch = () => {
+    if (selectedUserId) {
+      handleViewUser(selectedUserId);
     }
   };
 
@@ -124,9 +160,6 @@ export default function Users() {
                       Email
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Subscription
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -162,16 +195,6 @@ export default function Users() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                          user.subscriptionStatus === 'PREMIUM'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {user.subscriptionStatus === 'PREMIUM' && <Crown className="w-3 h-3" />}
-                          {user.subscriptionStatus}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                           user.isActive 
                             ? 'bg-green-100 text-green-800' 
                             : 'bg-red-100 text-red-800'
@@ -193,14 +216,7 @@ export default function Users() {
                         </p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <Link
-                            to={`/users/${user.id}`}
-                            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                            title="View user"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </Link>
+                        <div className="flex items-center justify-end">
                           <button
                             onClick={() => handleDelete(user.id)}
                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -228,6 +244,138 @@ export default function Users() {
           </>
         )}
       </div>
+      )}
+
+      {/* User Detail Modal */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="bg-white rounded-xl p-6 w-full max-w-lg mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={handleCloseModal}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Loading State */}
+            {loadingUserDetails && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-500">Loading user details...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {userDetailsError && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <p className="text-red-500 mb-4">{userDetailsError}</p>
+                <button
+                  onClick={handleRetryFetch}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* User Details */}
+            {selectedUserDetails && !loadingUserDetails && !userDetailsError && (
+              <div className="space-y-6">
+                {/* Section 1: Profile */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile</h3>
+                  <div className="flex items-start gap-4">
+                    <Avatar
+                      name={selectedUserDetails.name || selectedUserDetails.email}
+                      size="lg"
+                    />
+                    <div className="flex-1">
+                      <p className="text-lg font-bold text-gray-900">
+                        {selectedUserDetails.name || 'N/A'}
+                      </p>
+                      <p className="text-sm text-gray-500 mb-2">
+                        {selectedUserDetails.email}
+                      </p>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                        selectedUserDetails.isActive
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {selectedUserDetails.isActive ? (
+                          <><UserCheck className="w-3 h-3" /> Active</>
+                        ) : (
+                          <><UserX className="w-3 h-3" /> Inactive</>
+                        )}
+                      </span>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Joined: {new Date(selectedUserDetails.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Workout Stats */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Workout Stats</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <Dumbbell className="w-6 h-6 text-primary-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Total Workouts</p>
+                      <p className="text-lg font-bold text-gray-900">{selectedUserDetails.totalWorkouts}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <Dumbbell className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Total Weight</p>
+                      <p className="text-lg font-bold text-gray-900">{selectedUserDetails.totalVolumeKg} kg</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <Calendar className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Last Workout</p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {selectedUserDetails.lastWorkoutDate
+                          ? new Date(selectedUserDetails.lastWorkoutDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric'
+                            })
+                          : 'Never'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Streaks */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Streaks</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <Flame className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Current Streak</p>
+                      <p className="text-lg font-bold text-gray-900">{selectedUserDetails.currentStreak} days</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <Flame className="w-6 h-6 text-red-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Best Streak</p>
+                      <p className="text-lg font-bold text-gray-900">{selectedUserDetails.bestStreak} days</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
